@@ -5,9 +5,7 @@ from turtle import forward
 
 class Layer():
     def __init__(self, input,output):
-        self.input = None
-        self.output = None
-    
+        pass
     def forward(self):
         pass
     def bakward(self):
