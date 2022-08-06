@@ -20,11 +20,11 @@ final_X_test = final_X_test.fillna(final_X_test.mean())
 
 
 input_dim        = X_train.shape[1] # number of neurons in the input layer
-n_neurons        =  25       # number of neurons in the first hidden layer
+n_neurons        =  5       # number of neurons in the first hidden layer
 epochs           = 150       # number of training cycles
 
-a=Network(input_size=input_dim,output_size=1,output_activision='relu')
-a.hiddenDenseLayers(hidden_layers=[(n_neurons,'relu')])
-a.fit(x=X_train,target=y_train,epochs=150,learning_rate=0.1
-      ,batch_size=1,lossfunction='mean_squared_error',optimization='gradient_descent',iter=1,stochastic=True)
+a=Network(input_size=input_dim,output_size=1,output_activision='tanh')
+a.hiddenDenseLayers(hidden_layers=[(n_neurons,'leakyrelu')])
+result=a.fit(x=X_train,target=y_train,epochs=1500,learning_rate=0.1
+      ,batch_size=64,lossfunction='mean_squared_error',optimization='gradient_descent_with_momentum',iter=1,stochastic=True)
 a.errorToepoch()

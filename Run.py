@@ -1,14 +1,10 @@
 from Stats import Stats
-from ast import Str
-from distutils.log import error
-from lib2to3 import refactor
 from random import random
 from sklearn import datasets
 from sklearn.utils import shuffle
 from Dense import Dense
-from Activision import Tanh,Relu
+from Activision import Tanh,Relu,LeakyRelu
 from LossFunction import LogLoss,MeanSquaredError,RootMeanSquaredError,MeanAbsoluteError,SoftMax
-from Optimization import GradientDescent,Adam,AdaDelta,RmsProp,StochasticGradientDescentWithMomentum,Adagrad
 from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
@@ -23,7 +19,6 @@ class Network():
         self.obj_loss=None
         self.obj_opt=None
         self.result_epoch_mean=[]
-
 
     def hiddenDenseLayers(self,hidden_layers):
         input=self.input_size
@@ -40,6 +35,8 @@ class Network():
             self.net.append(Relu())
         elif activision_name =='tanh':
             self.net.append(Tanh())
+        elif activision_name =='leakyrelu':
+            self.net.append(LeakyRelu())
         else:
             raise ValueError('Activision Function Did Not Define Correctly')
         
@@ -62,36 +59,10 @@ class Network():
             else:
                 raise ValueError('Loss Function Or Output Size Did Not Define Correctly')
 
-    def optimizationFunction(self,opt):
-        opt=opt.lower()
-        if opt == 'gradient_descent':
-            self.BATCH_SIZE=1
-            self.stochastic=False
-            self.obj_opt=GradientDescent()
-        elif opt == 'batch_gradient_descent':
-            self.stochastic=False
-            self.BATCH_SIZE=len(self.target)
-            self.obj_opt=GradientDescent()    
-        elif opt == 'stochastic_gradient_descent_with_momentum':
-            self.stochastic=True
-            self.obj_opt=StochasticGradientDescentWithMomentum()
-        elif opt == 'adagrad':
-            self.obj_opt=Adagrad()
-        elif opt == 'rmsprop':
-            self.obj_opt=RmsProp()
-        elif opt == 'adadelta':
-            self.obj_opt=AdaDelta()
-        elif opt == 'adam':
-            self.obj_opt=Adam()                    
-        else:
-            raise ValueError('Loss Function Did Not Define Correctly')
-        
     def iterBatch(self):
         self.iteration=self.X.shape[0]/self.BATCH_SIZE
         self.iteration=np.floor(self.iteration)
         self.iteration=int(self.iteration)
-        
-        
     
     def fit(self,x:pd.DataFrame,target:pd.DataFrame,epochs=1000,
             learning_rate=0.1,batch_size=32,iter=1,
@@ -106,20 +77,23 @@ class Network():
         self.optimization=optimization
         self.iter=iter
         self.stochastic=stochastic
+        self.result_list=[]
         
         self.lossFunction(self.lossfunction)
-        self.optimizationFunction(self.optimization)
         self.df=pd.concat([self.X,self.target],axis=1)        
-                
+
+        if self.optimization.lower()=='gradient_descent':       
+            self.BATCH_SIZE=1
+
         for epoch in range(self.EPOCHS):
-            result_list=[]
+            result_temp=[]
             error=0
             error_prim=0
             rand_num_list=[]
-            if self.stochastic ==False:
-                self.iterBatch()
-            else:
+            if self.stochastic:
                 self.iteration=self.iter
+            else:
+                self.iterBatch()
                 
             for iter in range(self.iteration):
                 output_iter_list=[]
@@ -137,16 +111,24 @@ class Network():
                             output=layer.forward(output)
                         output_iter_list.append(output)
                 else:
-                    while True:    
+                    while True:   
+                        count=0 
                         rand_num=np.random.randint(0,len(target))
-                        if rand_num in rand_num_list:continue
-                        rand_num_list.append(rand_num)
-                        output=self.df.iloc[rand_num,:-1]
-                        for layer in self.net:
-                            output=layer.forward(output)
-                        output_iter_list.append(output)
-                        start,end=rand_num,rand_num
-                        end+=1
+                        if rand_num in rand_num_list:
+                            count+=1
+                            if count >1:
+                                break
+                            else:
+                                continue
+                        else:
+                            break    
+                    rand_num_list.append(rand_num)
+                    output=self.df.iloc[rand_num,:-1].to_numpy()
+                    for layer in self.net:
+                        output=layer.forward(output)
+                    output_iter_list.append(output)
+                    start,end=rand_num,rand_num
+                    end+=1
     
                 output_iter_array=np.array(output_iter_list)
                 
@@ -158,25 +140,26 @@ class Network():
                 for back_layer in reversed(self.net):
                     if count%2!=0:
                         i=np.floor(count/2)
-                        weight,bias,grad_err_input=back_layer.backward(self.LEARNING_RATE,grad_err_input,self.obj_opt)   
+                        weight,bias,grad_err_input=back_layer.backward(self.LEARNING_RATE,grad_err_input,self.optimization)   
                         count-=1
                         result={'epoch':epoch,'iter':iter,'error':error,'error_prim':error_prim,'layer':i,'weight':weight,'bias':bias}
-                        result_list.append(result)
-
+                        self.result_list.append(result)
+                        result_temp.append(result)        
                     else:        
                         grad_err_input=back_layer.backward(self.LEARNING_RATE,grad_err_input,self.obj_opt)
                         count-=1
+                
+                result_tmp_df=pd.DataFrame(result_temp,columns=['epoch','iter','error','error_prim','layer','weight','bias']) 
+                print(f'***********epoch={epoch}      error={result_tmp_df.error.mean()}***************')        
 
             
-            result_df=pd.DataFrame(result_list,columns=['epoch','iter','error','error_prim','layer','weight','bias'])  
-            self.stats=Stats().setParams(result_df)
-            result_mean=result_df.loc[result_df['epoch']==epoch]
-            self.result_epoch_mean.append(result_mean['error'].mean())
-            
-            print(f'***********epoch={epoch}      error={self.result_epoch_mean[epoch]}***************')        
-    
+        self.result_df=pd.DataFrame(self.result_list,columns=['epoch','iter','error','error_prim','layer','weight','bias'])  
+        self.stats=Stats().setParams(self.result_df)
+        return self.result_df
+
     def errorToepoch(self):
-        plt.plot(range(self.EPOCHS),self.result_epoch_mean)
+        df=self.result_df.loc[self.result_df.layer==1.0]
+        plt.plot(range(df.shape[0]),df.error)
         plt.show()
         
         

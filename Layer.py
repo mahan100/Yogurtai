@@ -4,7 +4,7 @@ from turtle import forward
 
 
 class Layer():
-    def __init__(self, input,output):
+    def __init__(self):
         pass
     def forward(self):
         pass
