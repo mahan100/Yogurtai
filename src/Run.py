@@ -20,6 +20,7 @@ class Network():
         self.obj_opt=None
         self.result_epoch_mean=[]
 
+    #making hidden layers
     def hiddenDenseLayers(self,hidden_layers):
         input=self.input_size
         for i in hidden_layers:
@@ -28,7 +29,8 @@ class Network():
             self.obj_act(i[1])
         self.net.append(Dense(input,self.output_size))
         self.obj_act(self.activision)
-          
+
+    #selecting and making activision object
     def obj_act(self,i):
         activision_name=i.lower()
         if activision_name == 'relu':
@@ -39,7 +41,8 @@ class Network():
             self.net.append(LeakyRelu())
         else:
             raise ValueError('Activision Function Did Not Define Correctly')
-        
+    
+    #select and make lossfunction object  
     def lossFunction(self,loss):
         loss=loss.lower()
         if self.output_size==1:
@@ -58,12 +61,13 @@ class Network():
                 self.obj_loss=SoftMax()        
             else:
                 raise ValueError('Loss Function Or Output Size Did Not Define Correctly')
-
+    
+    #determine iteration base on batci_size
     def iterBatch(self):
         self.iteration=self.X.shape[0]/self.BATCH_SIZE
         self.iteration=np.floor(self.iteration)
         self.iteration=int(self.iteration)
-    
+    #train model
     def fit(self,x:pd.DataFrame,target:pd.DataFrame,epochs=1000,
             learning_rate=0.1,batch_size=32,iter=1,
             lossfunction='mean_score_error',optimization='adam',stochastic=False):
@@ -84,7 +88,7 @@ class Network():
 
         if self.optimization.lower()=='gradient_descent':       
             self.BATCH_SIZE=1
-
+        #epoch
         for epoch in range(self.EPOCHS):
             result_temp=[]
             error=0
@@ -98,7 +102,7 @@ class Network():
             for iter in range(self.iteration):
                 output_iter_list=[]
                     
-                
+                #feed forward
                 if self.stochastic == False:
                     start=self.BATCH_SIZE*iter
                     end=(iter+1)*self.BATCH_SIZE
@@ -132,9 +136,11 @@ class Network():
     
                 output_iter_array=np.array(output_iter_list)
                 
+                #lossfunction
                 error=self.obj_loss.lossFunction(self.df.iloc[start:end,-1].to_numpy(),output_iter_array)
                 error_prim =self.obj_loss.lossFunction_prim(self.df.iloc[start:end,-1].to_numpy(),output_iter_array,self.df.iloc[start:end,:-1].to_numpy())
-                             
+                
+                #back propagation       
                 grad_err_input=error_prim
                 count=len(self.net)
                 for back_layer in reversed(self.net):

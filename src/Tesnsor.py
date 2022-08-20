@@ -31,9 +31,9 @@ class Tensor():
         print(zip_total)
 
 
-liist=[2,4,2,1,6,7,8,6]
+lst=[2,4,2,1,6,7,8,6]
 obj=Tensor()
-obj.tensor(l=liist,size=(2,4))
+obj.tensor(l=lst,size=(2,4))
 
 
 
