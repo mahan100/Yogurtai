@@ -1,2 +1,3 @@
-/stc/__pycache__
-/.venv
+.venv
+.vscode
+./src/__pycache__
